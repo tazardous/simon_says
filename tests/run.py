@@ -18,6 +18,12 @@ CARDS="""(()=>{const out={bad:[],n:0,kinds:{}};
   else if(c.kind==='act'){ if(typeof c.simon!=='boolean') err('no simon flag'); if(lv===0&&!c.simon) err('level 1 must not trick'); }
   else err('unknown kind '+c.kind);
  } return out;})()"""
+RHYME="""(()=>{const bad=[]; let n=0; const same=(a,b)=>__SS.RSETS.some(s=>s.some(x=>x[0]===a)&&s.some(x=>x[0]===b));
+ for(let i=0;i<1500;i++){ const c=__SS.makeCard('shape',2); if(!c.rhyme) continue; n++; const [w,ans]=c.rhyme;
+  const good=c.choices.filter(x=>x.ok), others=c.choices.filter(x=>!x.ok);
+  if(good.length!==1||!same(w,good[0].label)||good[0].label===w) bad.push(['answer',w,good.map(x=>x.label)]);
+  for(const o of others) if(same(w,o.label)||o.label===w) bad.push(['distractor rhymes',w,o.label]); }
+ return {n,bad}; })()"""
 PLAY="""async(mode)=>{ // mode: 'right' always right; 'mixed' ~ half right
   const S=__SS, sleep=ms=>new Promise(r=>setTimeout(r,ms)); let guard=0, turns=0, wrongs=0;
   while(!S.G.over&&guard++<2000){
@@ -37,6 +43,7 @@ with sync_playwright() as p:
     pg.on('pageerror',lambda e:errs.append(str(e))); pg.on('console',lambda m:errs.append(m.text) if m.type=='error' and 'Failed to load' not in m.text else None)
     pg.add_init_script('window.__SSfast=true;'); pg.goto(URL); pg.wait_for_timeout(500)
     r=pg.evaluate(CARDS); chk(not r['bad'],f"{r['n']} generated cards valid {r['bad'][:3]}"); print(' kinds:',json.dumps(r['kinds']))
+    r=pg.evaluate(RHYME); chk(r['n']>100 and not r['bad'],f"rhyme cards: {r['n']} checked, answer rhymes and distractors do not {r['bad'][:3]}")
     for lv in range(3):
         for n in (1,2,4):
             pg.evaluate(f'__SS.newGame({{players:{n},level:{lv},avs:[0,1,2,3]}});0')
