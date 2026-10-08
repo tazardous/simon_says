@@ -29,7 +29,7 @@ button:focus-visible{outline:4px solid #FFD43B;outline-offset:2px}
 .screen.on{display:flex}
 h1{font-size:clamp(30px,7vw,54px);margin:6px 0 0;color:#FFE14D;text-shadow:0 4px 0 #2d1b5e;text-align:center;line-height:1}
 .sub{color:#fff;text-align:center;margin:6px 0 12px;font-size:clamp(14px,3.2vw,20px)}
-.panel{background:var(--card);border:4px solid var(--line);border-radius:26px;padding:14px;width:min(560px,100%);box-shadow:0 6px 0 #2d1b5e}
+.panel{background:var(--card);border:4px solid var(--line);border-radius:26px;padding:14px;width:min(780px,100%);box-shadow:0 6px 0 #2d1b5e}
 .panel h2{margin:0 0 8px;font-size:22px}
 .row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:12px}
 .opt{flex:1 1 90px;min-width:84px;font-size:20px;padding:12px 8px;line-height:1.1}
@@ -114,15 +114,29 @@ h1{font-size:clamp(30px,7vw,54px);margin:6px 0 0;color:#FFE14D;text-shadow:0 4px
 @media (prefers-reduced-motion:reduce){.tok.cur,.die.roll,#win .trophy{animation:none}}
 .panel h2 small{font-weight:500;font-size:14px}
 .hint{margin:0 0 8px;font-size:13px;line-height:1.25}
-.prow{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.prow{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:nowrap}
+@media (max-width:420px){.prow{flex-wrap:wrap}}
 .prow .av{font-size:30px;padding:4px 8px;flex:0 0 auto;background:#fff}
-.prow .nm{flex:1 1 110px;min-width:96px;font:inherit;font-weight:700;font-size:18px;color:var(--ink);border:3px solid var(--line);border-radius:14px;padding:8px 10px;background:#fff}
+.prow .nm{flex:1 1 0;min-width:60px;width:0;font:inherit;font-weight:700;font-size:18px;color:var(--ink);border:3px solid var(--line);border-radius:14px;padding:8px 10px;background:#fff}
 .prow .lvs{display:flex;gap:4px;flex:0 0 auto}
-.prow .lvs button{font-size:22px;padding:5px 9px;border-radius:14px;line-height:1}
+.prow .lvs button{font-size:20px;padding:4px 7px;border-radius:12px;line-height:1}
 .prow .lvs button.sel{background:#FFE14D;box-shadow:inset 0 0 0 3px #fff}
 .prow .pn{font-size:12px;opacity:.6;width:14px}
 .pc .lvb{font-size:11px;margin-left:2px}
 .tok.many{font-size:clamp(11px,3.4vw,24px)}
+.cnt{display:flex;gap:8px;margin-bottom:12px}
+.cnt .opt{flex:1 1 0;min-width:0;padding:10px 0;font-size:24px}
+#plist{display:grid;grid-template-columns:1fr;gap:0 18px}
+@media (min-width:720px){#plist{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.screen{justify-content:center}}
+.prow .nm{min-width:0}
+/* wide / landscape screens: scoreboard on the left, board on the right */
+@media (min-aspect-ratio:3/2) and (min-width:700px){
+  #game{flex-direction:row;justify-content:center;align-items:center;gap:18px;padding:10px 14px}
+  #hud{display:flex;flex-direction:column;width:clamp(170px,22vw,250px);margin:0;gap:6px}
+  #boardwrap{flex:0 0 auto;width:auto}
+  #board{--bs:min(100vw - clamp(170px,22vw,250px) - 60px,100dvh - 24px,820px)}
+  .pc{padding:5px 10px}
+}
 </style>
 </head>
 <body>
@@ -132,7 +146,7 @@ h1{font-size:clamp(30px,7vw,54px);margin:6px 0 0;color:#FFE14D;text-shadow:0 4px
   <p class="sub">Roll the dice, move, play, win 10 stars!</p>
   <div class="panel">
     <h2>How many players? <small>(up to 6)</small></h2>
-    <div class="row" id="optPlayers"></div>
+    <div class="cnt" id="optPlayers"></div>
     <h2>Who is playing?</h2>
     <p class="hint">Tap the animal to change it. Pick a level for each player, so everyone can play together! 🌱 Sprouts (age 4) · ⭐ Stars (age 5) · 🏆 Champs (age 6)</p>
     <div id="plist"></div>
@@ -471,7 +485,7 @@ function win(p){
 function showScreen(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id)); }
 function renderSetup(){
   $('#optPlayers').innerHTML=[1,2,3,4,5,6].map(n=>`<button class="opt${save.players===n?' sel':''}" data-n="${n}" aria-label="${n} players">${n}</button>`).join('');
-  $('#plist').innerHTML=Array.from({length:save.players},(_,i)=>`<div class="prow" data-p="${i}"><span class="pn">${i+1}</span><button class="av" data-act="av" aria-label="Player ${i+1} animal: ${ANIMALS[save.avs[i]][1]}. Tap to change">${ANIMALS[save.avs[i]][0]}</button><input class="nm" data-act="nm" maxlength="12" placeholder="${ANIMALS[save.avs[i]][1]}" aria-label="Player ${i+1} name" value="${esc(save.names[i]||'')}" autocomplete="off"><div class="lvs">${LEVELS.map((l,k)=>`<button data-act="lv" data-l="${k}" class="${save.lvls[i]===k?'sel':''}" aria-label="${l.name}, ${l.note}" title="${l.name} (${l.note})">${LV_ICON[k]}</button>`).join('')}</div></div>`).join('');
+  $('#plist').innerHTML=Array.from({length:save.players},(_,i)=>`<div class="prow" data-p="${i}"><button class="av" data-act="av" aria-label="Player ${i+1} animal: ${ANIMALS[save.avs[i]][1]}. Tap to change">${ANIMALS[save.avs[i]][0]}</button><input class="nm" data-act="nm" maxlength="12" placeholder="${ANIMALS[save.avs[i]][1]}" aria-label="Player ${i+1} name" value="${esc(save.names[i]||'')}" autocomplete="off"><div class="lvs">${LEVELS.map((l,k)=>`<button data-act="lv" data-l="${k}" class="${save.lvls[i]===k?'sel':''}" aria-label="${l.name}, ${l.note}" title="${l.name} (${l.note})">${LV_ICON[k]}</button>`).join('')}</div></div>`).join('');
   $('#tVoice').classList.toggle('off',!save.voice); $('#tSound').classList.toggle('off',!save.sound);
 }
 $('#optPlayers').addEventListener('click',e=>{ const b=e.target.closest('[data-n]'); if(!b) return; save.players=+b.dataset.n; save.avs=fixAvs(save.avs); persist(); renderSetup(); sfx('tick'); });
