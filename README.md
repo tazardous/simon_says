@@ -1,6 +1,6 @@
 # Simon Says Party Board
 
-A pass-and-play board game for 1 to 4 players, ages 4 to 6. Roll the dice, move around the board, and do the card on your space. Every right answer earns a star. **First to 10 stars wins!**
+A pass-and-play board game for 1 to 6 players, ages 4 to 6. Everyone types their own name, picks an animal, and picks their **own level**, so a 4-year-old and a 6-year-old can race each other fairly. Roll the dice, move around the board, and do the card on your space. Every right answer earns a star. **First to 10 stars wins!**
 
 **Spaces**
 - 🤸 **Move** – a Simon Says action ("Simon says touch your nose!"). On the Stars and Champs levels, sometimes Simon does *not* say it, so you must stay still!
@@ -9,7 +9,7 @@ A pass-and-play board game for 1 to 4 players, ages 4 to 6. Roll the dice, move 
 - ➕ **Math** – counting, adding, taking away, number patterns.
 - 🔷 **Shapes & more** – colors, shapes, counting sides, patterns, rhymes.
 
-**Three levels**
+**Three levels (chosen per player)**
 | Level | For | Examples |
 |---|---|---|
 | 🌱 Sprouts | age 4 | first letters, counting to 6, tap the color or shape, easy moves |
@@ -21,4 +21,4 @@ Everything is read aloud (the 🔊 button repeats it), so little ones do not nee
 Single-file HTML5 game. Open `index.html` in any browser, phone or tablet; it can be added to the home screen. Settings are remembered.
 
 ## Tests
-`python3 tests/run.py` checks thousands of generated cards on every level, plays full games (1, 2 and 4 players at every level, with right and wrong answers) and checks the layout on phone and tablet sizes. `python3 tests/shots.py` makes screenshots.
+`python3 tests/run.py` checks thousands of generated cards on every level, plays full games (1, 2, 4 and 6 players at every level, with right and wrong answers, plus mixed-level games), tests the name/level setup screen and checks the layout on phone and tablet sizes. `python3 tests/shots.py` makes screenshots.

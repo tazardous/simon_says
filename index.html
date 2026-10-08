@@ -44,11 +44,11 @@ h1{font-size:clamp(30px,7vw,54px);margin:6px 0 0;color:#FFE14D;text-shadow:0 4px
 
 /* game screen */
 #game{padding:6px 8px}
-#hud{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;width:min(720px,100%);margin-bottom:6px}
+#hud{display:grid;grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:5px;width:min(720px,100%);margin-bottom:6px}
 .pc{display:flex;align-items:center;gap:6px;background:#fff9e8;border:3px solid var(--line);border-radius:16px;padding:4px 8px;opacity:.78;min-width:0}
 .pc.cur{opacity:1;background:#FFE14D;box-shadow:0 0 0 4px #fff}
 .pc .a{font-size:26px;line-height:1}
-.pc .n{font-size:13px;line-height:1}
+.pc .n{font-size:13px;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pc .pi{flex:1;min-width:0}.pc .sc{font-size:14px;font-weight:700}.bar{height:7px;border:2px solid var(--line);border-radius:6px;background:#fff;margin-top:3px;overflow:hidden}.bar i{display:block;height:100%;background:#FF922B;transition:width .4s}
 .pips{display:grid;grid-template-columns:repeat(10,1fr);gap:1px;font-size:11px;line-height:1;min-width:110px}
 .pips i{font-style:normal;filter:grayscale(1) opacity(.35)}
 .pips i.f{filter:none}
@@ -112,6 +112,17 @@ h1{font-size:clamp(30px,7vw,54px);margin:6px 0 0;color:#FFE14D;text-shadow:0 4px
 @keyframes fall{to{transform:translateY(110vh) rotate(540deg)}}
 @media (max-height:520px){#legend{display:none}#turn{font-size:15px}.die{width:50px}#roll{font-size:16px;padding:4px 16px}.pips{min-width:90px}#hud{margin-bottom:3px}.pc .a{font-size:20px}}
 @media (prefers-reduced-motion:reduce){.tok.cur,.die.roll,#win .trophy{animation:none}}
+.panel h2 small{font-weight:500;font-size:14px}
+.hint{margin:0 0 8px;font-size:13px;line-height:1.25}
+.prow{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.prow .av{font-size:30px;padding:4px 8px;flex:0 0 auto;background:#fff}
+.prow .nm{flex:1 1 110px;min-width:96px;font:inherit;font-weight:700;font-size:18px;color:var(--ink);border:3px solid var(--line);border-radius:14px;padding:8px 10px;background:#fff}
+.prow .lvs{display:flex;gap:4px;flex:0 0 auto}
+.prow .lvs button{font-size:22px;padding:5px 9px;border-radius:14px;line-height:1}
+.prow .lvs button.sel{background:#FFE14D;box-shadow:inset 0 0 0 3px #fff}
+.prow .pn{font-size:12px;opacity:.6;width:14px}
+.pc .lvb{font-size:11px;margin-left:2px}
+.tok.many{font-size:clamp(11px,3.4vw,24px)}
 </style>
 </head>
 <body>
@@ -120,12 +131,11 @@ h1{font-size:clamp(30px,7vw,54px);margin:6px 0 0;color:#FFE14D;text-shadow:0 4px
   <h1>SIMON SAYS<br>PARTY BOARD</h1>
   <p class="sub">Roll the dice, move, play, win 10 stars!</p>
   <div class="panel">
-    <h2>How many players?</h2>
+    <h2>How many players? <small>(up to 6)</small></h2>
     <div class="row" id="optPlayers"></div>
-    <h2>Pick your animals!</h2>
-    <div id="avPick"></div>
-    <h2>How tricky?</h2>
-    <div class="row" id="optLevel"></div>
+    <h2>Who is playing?</h2>
+    <p class="hint">Tap the animal to change it. Pick a level for each player, so everyone can play together! 🌱 Sprouts (age 4) · ⭐ Stars (age 5) · 🏆 Champs (age 6)</p>
+    <div id="plist"></div>
     <button class="big play" id="start">LET'S PLAY!</button>
     <div class="toggles"><button id="tVoice">🗣️ VOICE</button><button id="tSound">🔊 SOUND</button></div>
   </div>
@@ -176,8 +186,9 @@ function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=rnd(i+1
 const TS=()=>window.__SSfast?0.02:1;
 const wait=ms=>new Promise(r=>setTimeout(r,ms*TS()));
 const SAVE='ss.v1', GOAL=10;
-let save={players:2,level:1,voice:true,sound:true,avs:[0,1,2,3]};
+let save={players:2,voice:true,sound:true,avs:[0,1,2,3,4,5],names:['','','','','',''],lvls:[1,1,1,1,1,1]};
 try{ const s=JSON.parse(localStorage.getItem(SAVE)||'null'); if(s) save=Object.assign(save,s); }catch(e){}
+const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const persist=()=>{ try{ localStorage.setItem(SAVE,JSON.stringify(save)); }catch(e){} };
 
 /* ---------------- audio + voice ---------------- */
@@ -359,15 +370,16 @@ function makeCard(type,lv){
 /* ---------------- board ---------------- */
 const ORDER=['move','spell','math','nature','shape'];
 const TYPES={move:{icon:'🤸',name:'MOVE',tag:'SIMON SAYS'},spell:{icon:'🔤',name:'LETTERS',tag:'LETTERS'},math:{icon:'➕',name:'MATH',tag:'MATH'},nature:{icon:'🌿',name:'NATURE',tag:'NATURE MOVES'},shape:{icon:'🔷',name:'SHAPES',tag:'SHAPES & MORE'}};
-const N=24;
+const N=24, LV_ICON=['🌱','⭐','🏆'];
 const SPACES=[]; // {type,col,row}
 (function(){ const c=[]; for(let x=0;x<7;x++) c.push([x,0]); for(let y=1;y<7;y++) c.push([6,y]); for(let x=5;x>=0;x--) c.push([x,6]); for(let y=5;y>=1;y--) c.push([0,y]);
   c.forEach(([col,row],i)=>SPACES.push({type:ORDER[i%5],col,row})); })();
 
 let G=null, busy=false, card=null, cardState=null;
 function newGame(opts){
-  const n=opts.players, lv=opts.level;
-  G={lv,players:Array.from({length:n},(_,i)=>({av:ANIMALS[opts.avs[i]],pos:0,score:0,tries:0})),cur:0,over:false,turns:0};
+  const n=opts.players;
+  G={players:Array.from({length:n},(_,i)=>{ const av=ANIMALS[opts.avs[i]%ANIMALS.length]; const nm=((opts.names&&opts.names[i])||'').trim().slice(0,12)||av[1];
+    return {av,name:nm,lv:opts.lvls?opts.lvls[i]:opts.level,pos:0,score:0}; }),cur:0,over:false,turns:0};
   used.m={};
   buildBoard(); renderHud(); showScreen('game'); beginTurn();
 }
@@ -381,17 +393,17 @@ function buildBoard(){
 }
 function placeTokens(){
   G.players.forEach((p,i)=>{ const s=SPACES[p.pos], el=$('#tok'+i); const same=G.players.filter((q,j)=>q.pos===p.pos&&j<i).length, tot=G.players.filter(q=>q.pos===p.pos).length;
-    const off=tot>1?[[-0.22,-0.2],[0.22,-0.2],[-0.22,0.22],[0.22,0.22]][same]:[0,0];
-    el.style.left=((s.col+off[0])/7*100)+'%'; el.style.top=((s.row+off[1])/7*100)+'%'; el.classList.toggle('cur',i===G.cur&&!G.over); el.style.zIndex=i===G.cur?3:2; });
+    const off=tot>1?[[-0.27,-0.22],[0,-0.22],[0.27,-0.22],[-0.27,0.22],[0,0.22],[0.27,0.22]][same]:[0,0];
+    el.style.left=((s.col+off[0])/7*100)+'%'; el.style.top=((s.row+off[1])/7*100)+'%'; el.classList.toggle('many',tot>2); el.classList.toggle('cur',i===G.cur&&!G.over); el.style.zIndex=i===G.cur?3:2; });
 }
 function renderHud(){
-  $('#hud').innerHTML=G.players.map((p,i)=>`<div class="pc${i===G.cur?' cur':''}"><span class="a">${p.av[0]}</span><div><div class="n">${p.av[1].toUpperCase()}</div><div class="pips">${Array.from({length:GOAL},(_,k)=>`<i class="${k<p.score?'f':''}">⭐</i>`).join('')}</div></div></div>`).join('');
+  $('#hud').innerHTML=G.players.map((p,i)=>`<div class="pc${i===G.cur?' cur':''}"><span class="a">${p.av[0]}</span><div class="pi"><div class="n">${esc(p.name.toUpperCase())}<span class="lvb">${LV_ICON[p.lv]}</span></div><div class="bar" aria-label="${p.score} of ${GOAL} stars"><i style="width:${p.score*10}%"></i></div></div><span class="sc">⭐${p.score}</span></div>`).join('');
 }
 function drawDie(n){ const map={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]}[n]||[]; $('#die').innerHTML=Array.from({length:9},(_,i)=>`<i class="${map.includes(i)?'p':''}"></i>`).join(''); }
 function beginTurn(){
   const p=G.players[G.cur]; renderHud(); placeTokens();
-  $('#turn').textContent=`${p.av[0]} ${p.av[1]}'s turn!`; drawDie(5); $("#roll").disabled=false; $('#roll').style.visibility='visible'; busy=false;
-  say(`${p.av[1]}, your turn! Roll the dice!`);
+  $('#turn').textContent=`${p.av[0]} ${p.name}'s turn!`; drawDie(5); $("#roll").disabled=false; $('#roll').style.visibility='visible'; busy=false;
+  say(`${p.name}, your turn! Roll the dice!`);
 }
 async function roll(forced){
   if(busy||G.over) return; busy=true; audio(); $('#roll').style.visibility='hidden';
@@ -403,7 +415,7 @@ async function roll(forced){
   await wait(250); openCard(SPACES[p.pos].type);
 }
 function openCard(type){
-  const p=G.players[G.cur], lv=G.lv; card=makeCard(type,lv); cardState={done:false,right:null,slots:0,mistakes:0,order:null};
+  const p=G.players[G.cur], lv=p.lv; card=makeCard(type,lv); card.forLv=lv; cardState={done:false,right:null,slots:0,mistakes:0,order:null};
   $('#tag').textContent=`${TYPES[type].icon} ${TYPES[type].tag}`; $('#tag').style.background=`var(--${type})`;
   const bn=$('#banner');
   if(card.kind==='act'){ bn.style.display='inline-block'; bn.textContent=card.banner; bn.className=card.simon?'b-simon':'b-no'; }
@@ -414,7 +426,7 @@ function openCard(type){
   const ch=$('#choices'); ch.innerHTML=''; ch.className='';
   if(card.kind==='act'){ ch.className='act';
     const b1=btn('✅ I DID IT!',()=>answerAct(true)); ch.appendChild(b1);
-    if(G.lv>0){ ch.appendChild(btn('✋ I STAYED STILL!',()=>answerAct(false))); }
+    if(p.lv>0){ ch.appendChild(btn('✋ I STAYED STILL!',()=>answerAct(false))); }
   } else if(card.kind==='choice'){
     card.choices.forEach((c,i)=>{ const b=btn(c.html,()=>answerChoice(i,b),true); b.dataset.ok=c.ok?'1':'0'; ch.appendChild(b); });
   } else { // tiles
@@ -450,32 +462,35 @@ function nextTurn(){
 }
 function sparkle(){ const em=['⭐','✨','🎉','🌟']; for(let i=0;i<14;i++){ const e=document.createElement('div'); e.className='conf'; e.textContent=pick(em); e.style.left=rnd(100)+'vw'; e.style.animationDuration=(1.2+Math.random()*1.2)*TS()+'s'; e.style.fontSize=(18+rnd(18))+'px'; document.body.appendChild(e); setTimeout(()=>e.remove(),2800*TS()+100); } }
 function win(p){
-  G.over=true; $('#winH').textContent=`${p.av[0]} ${p.av[1].toUpperCase()} WINS!`; $('#winP').textContent='10 stars! Great playing, everyone!';
-  $('#win').classList.add('on'); sfx('win'); say(`${p.av[1]} wins! Great playing everyone!`);
+  G.over=true; $('#winH').textContent=`${p.av[0]} ${p.name.toUpperCase()} WINS!`; $('#winP').textContent='10 stars! Great playing, everyone!';
+  $('#win').classList.add('on'); sfx('win'); say(`${p.name} wins! Great playing everyone!`);
   for(let k=0;k<4;k++) setTimeout(sparkle,k*400*TS());
 }
 
 /* ---------------- setup screen ---------------- */
 function showScreen(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id)); }
 function renderSetup(){
-  $('#optPlayers').innerHTML=[1,2,3,4].map(n=>`<button class="opt${save.players===n?' sel':''}" data-n="${n}">${n}<small>${n===1?'player':'players'}</small></button>`).join('');
-  $('#optLevel').innerHTML=LEVELS.map((l,i)=>`<button class="opt${save.level===i?' sel':''}" data-l="${i}">${['🌱','⭐','🏆'][i]}<br>${l.name}<small>${l.note}</small></button>`).join('');
-  $('#avPick').innerHTML=Array.from({length:save.players},(_,pi)=>`<div class="row" data-p="${pi}">`+ANIMALS.map((a,ai)=>`<button class="av opt${save.avs[pi]===ai?' sel':''}" data-a="${ai}" aria-label="Player ${pi+1}: ${a[1]}">${a[0]}</button>`).join('')+'</div>').join('');
+  $('#optPlayers').innerHTML=[1,2,3,4,5,6].map(n=>`<button class="opt${save.players===n?' sel':''}" data-n="${n}" aria-label="${n} players">${n}</button>`).join('');
+  $('#plist').innerHTML=Array.from({length:save.players},(_,i)=>`<div class="prow" data-p="${i}"><span class="pn">${i+1}</span><button class="av" data-act="av" aria-label="Player ${i+1} animal: ${ANIMALS[save.avs[i]][1]}. Tap to change">${ANIMALS[save.avs[i]][0]}</button><input class="nm" data-act="nm" maxlength="12" placeholder="${ANIMALS[save.avs[i]][1]}" aria-label="Player ${i+1} name" value="${esc(save.names[i]||'')}" autocomplete="off"><div class="lvs">${LEVELS.map((l,k)=>`<button data-act="lv" data-l="${k}" class="${save.lvls[i]===k?'sel':''}" aria-label="${l.name}, ${l.note}" title="${l.name} (${l.note})">${LV_ICON[k]}</button>`).join('')}</div></div>`).join('');
   $('#tVoice').classList.toggle('off',!save.voice); $('#tSound').classList.toggle('off',!save.sound);
 }
-$('#optPlayers').addEventListener('click',e=>{ const b=e.target.closest('[data-n]'); if(!b) return; save.players=+b.dataset.n; persist(); renderSetup(); sfx('tick'); });
-$('#optLevel').addEventListener('click',e=>{ const b=e.target.closest('[data-l]'); if(!b) return; save.level=+b.dataset.l; persist(); renderSetup(); sfx('tick'); });
-$('#avPick').addEventListener('click',e=>{ const b=e.target.closest('[data-a]'); if(!b) return; const pi=+b.parentElement.dataset.p, ai=+b.dataset.a;
-  const other=save.avs.findIndex((v,i)=>i!==pi&&i<save.players&&v===ai); if(other>=0) save.avs[other]=save.avs[pi]; save.avs[pi]=ai; persist(); renderSetup(); sfx('tick'); });
+$('#optPlayers').addEventListener('click',e=>{ const b=e.target.closest('[data-n]'); if(!b) return; save.players=+b.dataset.n; save.avs=fixAvs(save.avs); persist(); renderSetup(); sfx('tick'); });
+$('#plist').addEventListener('click',e=>{ const b=e.target.closest('[data-act]'); if(!b||b.dataset.act==='nm') return; const i=+b.closest('.prow').dataset.p;
+  if(b.dataset.act==='lv'){ save.lvls[i]=+b.dataset.l; }
+  else if(b.dataset.act==='av'){ const taken=new Set(save.avs.slice(0,save.players)); let a=save.avs[i]; do{ a=(a+1)%ANIMALS.length; }while(taken.has(a)); save.avs[i]=a; }
+  persist(); renderSetup(); sfx('tick'); });
+$('#plist').addEventListener('input',e=>{ if(e.target.dataset.act!=='nm') return; save.names[+e.target.closest('.prow').dataset.p]=e.target.value.slice(0,12); persist(); });
 $('#tVoice').addEventListener('click',()=>{ save.voice=!save.voice; persist(); renderSetup(); if(save.voice) say('Voice is on!'); else try{ speechSynthesis.cancel(); }catch(e){} });
 $('#tSound').addEventListener('click',()=>{ save.sound=!save.sound; persist(); renderSetup(); sfx('tick'); });
-$('#start').addEventListener('click',()=>{ audio(); persist(); newGame({players:save.players,level:save.level,avs:save.avs}); });
+$('#start').addEventListener('click',()=>{ audio(); persist(); newGame({players:save.players,lvls:save.lvls,names:save.names,avs:save.avs}); });
 $('#roll').addEventListener('click',()=>roll());
 $('#next').addEventListener('click',nextTurn);
 $('#say').addEventListener('click',()=>{ if(card) say(card.speak); });
-$('#again').addEventListener('click',()=>{ $('#win').classList.remove('on'); newGame({players:save.players,level:save.level,avs:save.avs}); });
+$('#again').addEventListener('click',()=>{ $('#win').classList.remove('on'); newGame({players:save.players,lvls:save.lvls,names:save.names,avs:save.avs}); });
 $('#menu').addEventListener('click',()=>{ $('#win').classList.remove('on'); showScreen('setup'); renderSetup(); });
 document.addEventListener('visibilitychange',()=>{ if(document.hidden){ try{ speechSynthesis.cancel(); }catch(e){} } });
+function fixAvs(a){ const out=[]; for(let i=0;i<6;i++){ let v=a[i]; if(v==null||out.includes(v)||v>=ANIMALS.length){ v=0; while(out.includes(v)) v++; } out.push(v); } return out; }
+save.avs=fixAvs(save.avs); save.names=(save.names||[]).concat(['','','','','','']).slice(0,6); save.lvls=(save.lvls||[]).concat([1,1,1,1,1,1]).slice(0,6); if(!(save.players>=1&&save.players<=6)) save.players=2;
 renderSetup();
 document.body.dataset.ready='1';
 
